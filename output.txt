@@ -1,8 +1,0 @@
-Interface wlan2mon
-	ifindex 9
-	wdev 0x100000003
-	addr 00:c0:ca:96:ea:c3
-	type monitor
-	wiphy 1
-	channel 11 (2462 MHz), width: 20 MHz (no HT), center1: 2462 MHz
-	txpower 20.00 dBm
