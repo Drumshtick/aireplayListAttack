@@ -44,13 +44,40 @@ apMac="apMac"
 targetsLower="targetsLower"
 apMacLower="apMacLower"
 
+# Exit trap command
+
+function finish() {
+  	# Cleanup temporary files
+	echo $div
+	echo 'Cleaning up...'
+	echo $div
+	if [ -f $ID$targetsLower.txt ]; then
+    		sudo rm $ID$targetsLower.txt
+	fi
+	if [ -f $ID$targets.txt ]; then
+    		sudo rm $ID$targets.txt
+	fi
+	if [ -f $ID$apMacLower.txt ]; then
+    		sudo rm $ID$apMacLower.txt
+	fi
+	if [ -f $ID$apMac.txt ]; then
+    		sudo rm $ID$apMac.txt
+	fi
+	if [ -f $ID$output.txt ]; then
+		sudo rm $ID$output.txt
+	fi
+	
+
+}
+trap finish EXIT
+
 # Move supplied targets into temp targets file
 cat targets.txt > $ID$targets.txt
 
 # Move the Access Point Mac into a temp folder
 cat apMac.txt > $ID$apMac.txt
 
-# Read interface and check if "up"
+# Read interface and check if available
 iw dev
 printf "Interface name:  "
 read int
@@ -84,8 +111,11 @@ else
 		echo $div
 	fi
 fi
+
+# If interface was put into monitor by previous logic add 'mon' to int
 if [[ $int != *'mon'* ]]; then
-	$int=$int'mon'
+	int=$int'mon'
+	
 fi
 # Read channel and set interface to that channel
 printf "channel target is on:   "
@@ -98,10 +128,9 @@ printf "Enter the number of Deauths to send, 0 is infinite:    "
 read deauths
 
 # Check if 'Client ' is present, if so REMOVE THEM
-if grep -q 'Client '$ID$targets.txt; then
-	sed -i 's/Client //g' $ID$targets.txt
-fi
-
+#if grep -q 'Client '$ID$targets.txt; then
+#	sed -i 's/Client //g' $ID$targets.txt
+#fi
 # Convert all macaddress to lowercase
 tr '[:upper:]' '[:lower:]' < $ID$targets.txt > $ID$targetsLower.txt
 tr '[:upper:]' '[:lower:]' < $ID$apMac.txt > $ID$apMacLower.txt
@@ -115,10 +144,3 @@ cat $ID$targetsLower.txt | while read line; do
 	i=$((i+1))
 done
 
-# Cleanup temporary files
-echo $div
-echo 'Cleaning up...'
-echo $div
-sudo rm $ID$targetsLower.txt
-sudo rm $ID$apMacLower.txt
-sudo rm $ID$Output.txt
